@@ -1,0 +1,25 @@
+{
+  "instructions": [
+    ".claude/skills/rsk-guide/SKILL.md",
+    ".claude/skills/docs-architect/SKILL.md"
+  ],
+  "mcp": {
+    "rdk": {
+      "command": [
+        "rdk",
+        "mcp",
+        "--read-only"
+      ],
+      "enabled": true,
+      "type": "local"
+    },
+    "rsk": {
+      "command": [
+        "rsk",
+        "mcp"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  }
+}

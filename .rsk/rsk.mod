@@ -1,5 +1,5 @@
 version = 1
-tools = ["claude-code"]
+tools = ["claude-code", "opencode"]
 pinned = ["rsk-guide", "docs-architect"]
 
 [skills]

@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "rdk": {
+      "args": [
+        "mcp",
+        "--read-only"
+      ],
+      "command": "rdk"
+    },
     "rsk": {
       "args": [
         "mcp"
