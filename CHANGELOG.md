@@ -10,6 +10,10 @@ the tooling that applies it. Anything that changes what `task install` writes to
 
 ## [Unreleased]
 
+### Changed
+
+- The backlog is one file per item now: `docs/backlog/project.md` plus one file per item under `pending/`, `active/`, `done/` and `archive/`, with the item id in the filename. `docs-architect` 1.1.0 documents both layouts (this one and the list). Documentation only: no runtime change.
+
 ## [0.4.1] - 2026-10-28
 
 ### Fixed
