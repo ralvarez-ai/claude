@@ -5,7 +5,8 @@ frontmatter `status` tell you the state.
 
 | Folder | Holds |
 |---|---|
-| `backlog/` | Doing / Next / Later / Someday, plus raw capture |
+| `backlog/` | One file per item in `pending/`, `active/`, `done/` and `archive/` |
+| `notes/` | Raw capture, emptied weekly |
 | `reviews/` | Measurements and audits, dated, never rewritten |
 | `plans/` | What is proposed: phases and exit criteria |
 | `templates/` | The template for each type |
@@ -17,8 +18,13 @@ an edit to a dated one.
 
 | File | Holds |
 |---|---|
-| [claude.md](backlog/claude.md) | Open work: Doing (≤2), Next (≤5), Later, Someday |
-| [inbox.md](backlog/inbox.md) | Raw capture, emptied weekly |
+| [project.md](backlog/project.md) | Sections of the backlog. Items are the files in `pending/`, `active/`, `done/` and `archive/` |
+
+## notes/
+
+| File | Holds |
+|---|---|
+| [inbox.md](notes/inbox.md) | Raw capture, emptied weekly |
 
 ## reviews/
 

@@ -18,7 +18,7 @@ measurement and the guardrails so it does not happen blind again.
 |---|---|
 | [Session cost audit](docs/reviews/2026-10-28-claude-code-session-token-audit.md) | What was measured, what was ruled out, and where every dollar came from |
 | [Guardrails plan](docs/plans/2026-10-28-claude-code-token-guardrails-plan.md) | Settings, hooks, skill, subagent and audit script, in phases |
-| [Backlog](docs/backlog/claude.md) | Open work: Doing, Next, Later, Someday |
+| [Backlog](docs/backlog/project.md) | Open work, one file per item in `docs/backlog/` |
 | [Changelog](CHANGELOG.md) | What each release changes in what `task install` writes or `task audit` reports |
 
 ## Method
