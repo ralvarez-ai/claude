@@ -111,9 +111,12 @@ tasks:
     status:
       - test "$(codegraph --version 2>/dev/null)" = "{{.CODEGRAPH_VERSION}}"
       - grep -q '"codegraph"' "$HOME/.claude.json"
+      - '! grep -q "codegraph prompt-hook" "{{.CLAUDE_DIR}}/settings.json"'
     cmds:
       - npm i -g @colbymchenry/codegraph@{{.CODEGRAPH_VERSION}}
       - codegraph install -t claude -l global -y
+      # The prompt hook pastes indexed source into every structural prompt; keep only the MCP tool.
+      - python3 {{.TASKFILE_DIR}}/scripts/strip-hook.py "{{.CLAUDE_DIR}}/settings.json" "codegraph prompt-hook"
 
   install:context-mode:
     desc: Install or update the context-mode plugin
@@ -153,6 +156,7 @@ tasks:
         if python3 {{.BLOCK}} "$dir/CLAUDE.md" instructions/token-discipline.md TOKEN_DISCIPLINE --check; then note ok "CLAUDE.md block"; else note MISS "CLAUDE.md block"; gaps=$((gaps+1)); fi
         if rtk gain >/dev/null 2>&1 && grep -q 'rtk hook claude' "$dir/settings.json"; then note ok "rtk {{.RTK_VERSION}}"; else note MISS "rtk"; gaps=$((gaps+1)); fi
         if command -v codegraph >/dev/null && grep -q '"codegraph"' "$HOME/.claude.json"; then note ok "codegraph"; else note MISS "codegraph"; gaps=$((gaps+1)); fi
+        if grep -q 'codegraph prompt-hook' "$dir/settings.json"; then note MISS "codegraph prompt-hook removed"; gaps=$((gaps+1)); else note ok "codegraph prompt-hook removed"; fi
         if grep -q '"context-mode@context-mode"' "$dir/plugins/installed_plugins.json" 2>/dev/null; then note ok "context-mode"; else note MISS "context-mode"; gaps=$((gaps+1)); fi
         if cmp -s skills/benchmark-monitor/SKILL.md "$dir/skills/benchmark-monitor/SKILL.md" 2>/dev/null; then note ok "benchmark-monitor"; else note MISS "benchmark-monitor"; gaps=$((gaps+1)); fi
 
@@ -206,7 +210,7 @@ tasks:
       - |
         set -eu
         for hook in hooks/*.sh; do bash -n "$hook"; done
-        python3 -m py_compile scripts/audit-session-cost.py scripts/apply-settings.py scripts/apply-block.py
+        python3 -m py_compile scripts/audit-session-cost.py scripts/apply-settings.py scripts/apply-block.py scripts/strip-hook.py
         jq empty settings/claude-settings.json settings/claude-hooks.json
         echo "ok"
 
