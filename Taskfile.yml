@@ -5,7 +5,7 @@ version: '3'
 #
 #   task check     report what is applied (read-only, exit 0)
 #   task verify    same check, exit 1 if anything is missing
-#   task install   apply settings, hooks, agent and skill
+#   task install   apply settings, hooks, agents, skill, instructions block and token tools
 #   task audit     audit one session's tokens and cost
 
 vars:
@@ -13,6 +13,10 @@ vars:
     sh: echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
   AUDIT: '{{.TASKFILE_DIR}}/scripts/audit-session-cost.py'
   APPLY: '{{.TASKFILE_DIR}}/scripts/apply-settings.py'
+  BLOCK: '{{.TASKFILE_DIR}}/scripts/apply-block.py'
+  RTK_VERSION: v1.1.0
+  CODEGRAPH_VERSION: 1.6.2
+  AGENTS: benchmark-runner.md Explore.md
   HOOKS: context-meter.sh context-checkpoint.sh cache-watch.sh guard-deep-fork.sh guard-transcript-reads.sh guard-model-switch.sh guard-subagent-report.sh loop-concision.sh
 
 tasks:
@@ -23,12 +27,14 @@ tasks:
       - task --list
 
   install:
-    desc: Apply settings, hooks, agent and skill to the live Claude Code config
+    desc: Apply settings, hooks, agents, skill, instructions block and token tools
     cmds:
       - task: install:settings
       - task: install:hooks
       - task: install:agent
       - task: install:skill
+      - task: install:instructions
+      - task: install:tools
       - task: check
 
   install:settings:
@@ -53,13 +59,15 @@ tasks:
         done
 
   install:agent:
-    desc: Install the benchmark-runner subagent
+    desc: Install the subagents (benchmark-runner, Explore on Haiku)
     cmds:
       - |
         set -eu
         mkdir -p "{{.CLAUDE_DIR}}/agents"
-        install -m 0644 agents/benchmark-runner.md "{{.CLAUDE_DIR}}/agents/benchmark-runner.md"
-        echo "  ✓ benchmark-runner.md"
+        for agent in {{.AGENTS}}; do
+          install -m 0644 "agents/$agent" "{{.CLAUDE_DIR}}/agents/$agent"
+          echo "  ✓ $agent"
+        done
 
   install:skill:
     desc: Install the benchmark-monitor skill
@@ -70,6 +78,55 @@ tasks:
         rm -rf "{{.CLAUDE_DIR}}/skills/benchmark-monitor"
         cp -R skills/benchmark-monitor "{{.CLAUDE_DIR}}/skills/benchmark-monitor"
         echo "  ✓ benchmark-monitor"
+
+  install:instructions:
+    desc: Write the token-discipline block into the global CLAUDE.md (backs up first)
+    cmds:
+      - python3 {{.BLOCK}} "{{.CLAUDE_DIR}}/CLAUDE.md" instructions/token-discipline.md TOKEN_DISCIPLINE
+
+  install:tools:
+    desc: Install RTK, CodeGraph and context-mode and wire them into Claude Code
+    cmds:
+      - task: install:rtk
+      - task: install:codegraph
+      - task: install:context-mode
+
+  install:rtk:
+    desc: Install RTK (checksum-verified installer) and its Bash hook, no RTK.md
+    status:
+      - test "$(rtk --version 2>/dev/null)" = "rtk {{trimPrefix "v" .RTK_VERSION}}"
+      - grep -q 'rtk hook claude' "{{.CLAUDE_DIR}}/settings.json"
+    cmds:
+      - |
+        set -eu
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh -o "$tmp/install.sh"
+        RTK_VERSION={{.RTK_VERSION}} sh "$tmp/install.sh"
+        rtk gain >/dev/null || { echo "rtk gain failed: wrong rtk binary on PATH?" >&2; exit 1; }
+        rtk init -g --hook-only --auto-patch
+
+  install:codegraph:
+    desc: Install CodeGraph and register its MCP server in Claude Code (index repos with codegraph init)
+    status:
+      - test "$(codegraph --version 2>/dev/null)" = "{{.CODEGRAPH_VERSION}}"
+      - grep -q '"codegraph"' "$HOME/.claude.json"
+    cmds:
+      - npm i -g @colbymchenry/codegraph@{{.CODEGRAPH_VERSION}}
+      - codegraph install -t claude -l global -y
+
+  install:context-mode:
+    desc: Install or update the context-mode plugin
+    cmds:
+      - |
+        set -eu
+        claude plugin marketplace list 2>/dev/null | grep -q 'mksglu/context-mode' \
+          || claude plugin marketplace add mksglu/context-mode
+        if grep -q '"context-mode@context-mode"' "{{.CLAUDE_DIR}}/plugins/installed_plugins.json" 2>/dev/null; then
+          claude plugin update context-mode@context-mode
+        else
+          claude plugin install context-mode@context-mode
+        fi
 
   check:
     desc: Report the state of each guardrail (read-only)
@@ -90,7 +147,13 @@ tasks:
           fi
         done
 
-        if cmp -s agents/benchmark-runner.md "$dir/agents/benchmark-runner.md" 2>/dev/null; then note ok "benchmark-runner"; else note MISS "benchmark-runner"; gaps=$((gaps+1)); fi
+        for agent in {{.AGENTS}}; do
+          if cmp -s "agents/$agent" "$dir/agents/$agent" 2>/dev/null; then note ok "$agent"; else note MISS "$agent"; gaps=$((gaps+1)); fi
+        done
+        if python3 {{.BLOCK}} "$dir/CLAUDE.md" instructions/token-discipline.md TOKEN_DISCIPLINE --check; then note ok "CLAUDE.md block"; else note MISS "CLAUDE.md block"; gaps=$((gaps+1)); fi
+        if rtk gain >/dev/null 2>&1 && grep -q 'rtk hook claude' "$dir/settings.json"; then note ok "rtk {{.RTK_VERSION}}"; else note MISS "rtk"; gaps=$((gaps+1)); fi
+        if command -v codegraph >/dev/null && grep -q '"codegraph"' "$HOME/.claude.json"; then note ok "codegraph"; else note MISS "codegraph"; gaps=$((gaps+1)); fi
+        if grep -q '"context-mode@context-mode"' "$dir/plugins/installed_plugins.json" 2>/dev/null; then note ok "context-mode"; else note MISS "context-mode"; gaps=$((gaps+1)); fi
         if cmp -s skills/benchmark-monitor/SKILL.md "$dir/skills/benchmark-monitor/SKILL.md" 2>/dev/null; then note ok "benchmark-monitor"; else note MISS "benchmark-monitor"; gaps=$((gaps+1)); fi
 
         echo
@@ -106,12 +169,13 @@ tasks:
         echo "$out" | grep -q "everything applied" || exit 1
 
   uninstall:
-    desc: Remove the hooks, agent and skill (settings.json is left alone)
+    desc: Remove the hooks, agents, skill and CLAUDE.md block (settings.json and token tools are left alone)
     cmds:
       - |
         set -eu
         for hook in {{.HOOKS}}; do rm -f "{{.CLAUDE_DIR}}/hooks/$hook"; done
-        rm -f "{{.CLAUDE_DIR}}/agents/benchmark-runner.md"
+        for agent in {{.AGENTS}}; do rm -f "{{.CLAUDE_DIR}}/agents/$agent"; done
+        python3 {{.BLOCK}} "{{.CLAUDE_DIR}}/CLAUDE.md" instructions/token-discipline.md TOKEN_DISCIPLINE --remove
         rm -rf "{{.CLAUDE_DIR}}/skills/benchmark-monitor"
         echo "hooks, agent and skill removed"
         echo "settings.json untouched — use 'task restore' to roll it back to the last backup"
@@ -142,7 +206,7 @@ tasks:
       - |
         set -eu
         for hook in hooks/*.sh; do bash -n "$hook"; done
-        python3 -m py_compile scripts/audit-session-cost.py scripts/apply-settings.py
+        python3 -m py_compile scripts/audit-session-cost.py scripts/apply-settings.py scripts/apply-block.py
         jq empty settings/claude-settings.json settings/claude-hooks.json
         echo "ok"
 

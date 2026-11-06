@@ -51,8 +51,10 @@ after editing a hook updates it instead of stacking a second copy.
 |---|---|---|
 | Settings | `settings/claude-{settings,hooks}.json` | `~/.claude/settings.json` (merge) |
 | Hooks | `hooks/*.sh` | `~/.claude/hooks/` |
-| Subagent | `agents/benchmark-runner.md` | `~/.claude/agents/` |
+| Subagents | `agents/{benchmark-runner,Explore}.md` | `~/.claude/agents/` |
 | Skill | `skills/benchmark-monitor/` | `~/.claude/skills/` |
+| Instructions block | `instructions/token-discipline.md` | `~/.claude/CLAUDE.md` (marked block) |
+| Token tools | `task install:tools` | RTK hook, CodeGraph MCP, context-mode plugin |
 
 ### Hooks
 

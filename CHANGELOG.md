@@ -10,6 +10,12 @@ the tooling that applies it. Anything that changes what `task install` writes to
 
 ## [Unreleased]
 
+### Added
+
+- `task install:tools` installs and wires the token tools into Claude Code: RTK v1.1.0 (checksum-verified installer, `rtk init -g --hook-only`, so no `RTK.md` is loaded), CodeGraph 1.6.2 (npm, `codegraph install -t claude`) and the context-mode plugin (installed or updated to the latest, 2.1.5 on 2026-11-06). `install:rtk` and `install:codegraph` skip themselves when the pinned version is already wired. `task install` runs it; `task check` reports all three.
+- `agents/Explore.md` overrides the built-in Explore subagent, which otherwise runs on the main model: Haiku at low effort, CodeGraph first in indexed repos, and a caveman-style report capped at 200 words by default.
+- `task install:instructions` keeps a `TOKEN_DISCIPLINE` block in `~/.claude/CLAUDE.md` (`instructions/token-discipline.md`, via `scripts/apply-block.py`, which backs the file up first): subagent briefs ask for caveman-style reports, and so do notes written only for another model. `task uninstall` removes the block.
+
 ### Changed
 
 - The backlog is one file per item now: `docs/backlog/project.md` plus one file per item under `pending/`, `active/`, `done/` and `archive/`, with the item id in the filename. `docs-architect` 1.1.0 documents both layouts (this one and the list). Documentation only: no runtime change.
